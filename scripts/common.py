@@ -1,5 +1,6 @@
 from collections import defaultdict, namedtuple
 import pickle
+from pathlib import Path
 
 import tvm
 from tvm import relay, auto_scheduler
@@ -38,9 +39,9 @@ def log_line(record, out_file):
 ##### Dataset Utilities
 ####################################
 
-NETWORK_INFO_FOLDER = 'dataset/network_info'
-TO_MEASURE_PROGRAM_FOLDER = 'dataset/to_measure_programs'
-MEASURE_RECORD_FOLDER = 'dataset/measure_records'
+NETWORK_INFO_FOLDER = 'network_info'
+TO_MEASURE_PROGRAM_FOLDER = 'to_measure_programs'
+MEASURE_RECORD_FOLDER = 'measure_records'
 
 def clean_name(x):
     x = str(x)
@@ -49,24 +50,29 @@ def clean_name(x):
     x = x.replace("'", '')
     return x
 
-def get_relay_ir_filename(network_key):
-    return f"{NETWORK_INFO_FOLDER}/{clean_name(network_key)}.relay.pkl"
+def get_relay_ir_filename(network_key, dataset_path="./dataset"):
+    path = Path(dataset_path)
+    return str(path / f"{NETWORK_INFO_FOLDER}/{clean_name(network_key)}.relay.pkl")
 
-def get_task_info_filename(network_key, target):
+def get_task_info_filename(network_key, target, dataset_path="./dataset"):
     network_task_key = (network_key,) + (str(target.kind),)
-    return f"{NETWORK_INFO_FOLDER}/{clean_name(network_task_key)}.task.pkl"
+    path = Path(dataset_path)
+    return str(path / f"{NETWORK_INFO_FOLDER}/{clean_name(network_task_key)}.task.pkl")
 
-def get_to_measure_filename(task):
+def get_to_measure_filename(task, dataset_path="./dataset"):
     task_key = (task.workload_key, str(task.target.kind))
-    return f"{TO_MEASURE_PROGRAM_FOLDER}/{clean_name(task_key)}.json"
+    path = Path(dataset_path)
+    return str(path / f"{TO_MEASURE_PROGRAM_FOLDER}/{clean_name(task_key)}.json")
 
-def get_measure_record_filename(task, target=None):
+def get_measure_record_filename(task, target=None, dataset_path="./dataset"):
     target = target or task.target
     task_key = (task.workload_key, str(target.kind))
-    return f"{MEASURE_RECORD_FOLDER}/{target.model}/{clean_name(task_key)}.json"
+    path = Path(dataset_path)
+    return str(path / f"{MEASURE_RECORD_FOLDER}/{target.model}/{clean_name(task_key)}.json")
 
-def load_and_register_tasks():
-    tasks = pickle.load(open(f"{NETWORK_INFO_FOLDER}/all_tasks.pkl", "rb"))
+def load_and_register_tasks(dataset_path="./dataset"):
+    path = Path(dataset_path)
+    tasks = pickle.load(open(path / f"{NETWORK_INFO_FOLDER}/all_tasks.pkl", "rb"))
 
     for task in tasks:
         auto_scheduler.workload_registry.register_workload_tensors(

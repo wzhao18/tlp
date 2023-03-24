@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import argparse
 from tlp_train import *
+from pathlib import Path
 from mtl_tlp_train import MTLTLPAttentionModule
 
 
@@ -41,7 +42,7 @@ def pred_a_dataset(datas, task_pred_dict, model):
     ), test_loader.min_latency.min().numpy(), labels_all.numpy())
 
 
-def eval_model(model_file):
+def eval_model(model_file, dataset_path):
 
     with open(model_file, 'rb') as f:
         model = pickle.load(f).module.to(device)
@@ -54,11 +55,11 @@ def eval_model(model_file):
         pred_a_dataset_dict[workloadkey] = data
 
     files = [
-        'dataset/network_info/((resnet_50,[(1,3,224,224)]),%s).task.pkl' % args.platform,
-        'dataset/network_info/((mobilenet_v2,[(1,3,224,224)]),%s).task.pkl' % args.platform,
-        'dataset/network_info/((resnext_50,[(1,3,224,224)]),%s).task.pkl' % args.platform,
-        'dataset/network_info/((bert_base,[(1,128)]),%s).task.pkl' % args.platform,
-        'dataset/network_info/((bert_tiny,[(1,128)]),%s).task.pkl' % args.platform
+        'network_info/((resnet_50,[(1,3,224,224)]),%s).task.pkl' % args.platform,
+        'network_info/((mobilenet_v2,[(1,3,224,224)]),%s).task.pkl' % args.platform,
+        'network_info/((resnext_50,[(1,3,224,224)]),%s).task.pkl' % args.platform,
+        'network_info/((bert_base,[(1,128)]),%s).task.pkl' % args.platform,
+        'network_info/((bert_tiny,[(1,128)]),%s).task.pkl' % args.platform
     ]
     top_1_total = []
     top_5_total = []
@@ -71,7 +72,8 @@ def eval_model(model_file):
     top10_total = 0
     top20_total = 0
     for file in files:
-        tasks, task_weights = pickle.load(open(file, "rb"))
+        path = Path(dataset_path)
+        tasks, task_weights = pickle.load(open(path / file, "rb"))
         latencies = [0] * len(top_ks)
         best_latency = 0
 
@@ -120,6 +122,7 @@ if __name__ == "__main__":
     parser.add_argument("--test_dataset_name", type=str, default='tlp_dataset_platinum_8272_2308_test.pkl')
     parser.add_argument("--load_name", type=str, default='tlp_i7/tlp_model_0.pkl') 
     parser.add_argument("--platform", type=str, default='llvm')  # or cuda
+    parser.add_argument("--dataset_path", type=str, default="./dataset_cpu")
     args = parser.parse_args()
     print(args)
 
@@ -128,4 +131,4 @@ if __name__ == "__main__":
     with open(args.test_dataset_name, 'rb') as f:
         test_datasets = pickle.load(f)
 
-    eval_model(args.load_name)
+    eval_model(args.load_name, args.dataset_path)

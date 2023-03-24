@@ -12,11 +12,10 @@ from tvm.tir.expr import FloatImm
 import numpy as np
 import random
 import argparse
+from pathlib import Path
 
 
 def handle_file(file_idx, file):
-    print(file_idx)
-
     with open(file, 'r') as f:
         lines = f.read().strip().split('\n')
 
@@ -87,8 +86,8 @@ def handle_file(file_idx, file):
     return (file, file_idx, workloadkey_idx, task.workload_key, workload_args, task.compute_dag.flop_ct, line_vecs)
 
 
-def make_all_dataset(json_files_path):
-    tasks = load_and_register_tasks()
+def make_all_dataset(json_files_path, dataset_path):
+    tasks = load_and_register_tasks(dataset_path)
     json_files = sorted(glob.glob(json_files_path + '/' + '*.json'))
     json_files = random.sample(json_files, args.files_cnt)
 
@@ -160,6 +159,7 @@ if __name__ == "__main__":
     parser.add_argument("--platform", type=str, default='llvm')  # or cuda
     parser.add_argument("--crop_seq_len", type=int, default=-1)
     parser.add_argument("--crop_emb_size", type=int, default=-1)
+    parser.add_argument("--dataset_path", type=str, default="./dataset_cpu")
     args = parser.parse_args()
 
     if args.save_name == '':
@@ -167,14 +167,15 @@ if __name__ == "__main__":
 
     hold_out_tasks = []
     files = [
-        'dataset/network_info/((resnet_50,[(1,3,224,224)]),%s).task.pkl',
-        'dataset/network_info/((mobilenet_v2,[(1,3,224,224)]),%s).task.pkl',
-        'dataset/network_info/((resnext_50,[(1,3,224,224)]),%s).task.pkl',
-        'dataset/network_info/((bert_base,[(1,128)]),%s).task.pkl',
-        'dataset/network_info/((bert_tiny,[(1,128)]),%s).task.pkl'
+        'network_info/((resnet_50,[(1,3,224,224)]),%s).task.pkl',
+        'network_info/((mobilenet_v2,[(1,3,224,224)]),%s).task.pkl',
+        'network_info/((resnext_50,[(1,3,224,224)]),%s).task.pkl',
+        'network_info/((bert_base,[(1,128)]),%s).task.pkl',
+        'network_info/((bert_tiny,[(1,128)]),%s).task.pkl'
     ]
     for file in files:
-        tasks_part, task_weights = pickle.load(open(file % args.platform, "rb"))
+        path = Path(args.dataset_path)
+        tasks_part, task_weights = pickle.load(open(path / (file % args.platform), "rb"))
         hold_out_tasks.extend(tasks_part)
 
     hold_out_tasks_set = set([task.workload_key for task in hold_out_tasks])
@@ -211,6 +212,6 @@ if __name__ == "__main__":
 
     print(args)
 
-    file_vecs = make_all_dataset(args.json_files_path)
+    file_vecs = make_all_dataset(args.json_files_path, args.dataset_path)
     split_dataset(file_vecs)
     print('make dataset tlp done.')
