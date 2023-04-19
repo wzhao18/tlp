@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from tqdm.auto import tqdm
 import math
+from transformers import AutoModel
 
 class BertSegmentDataLoader:
     def __init__(
@@ -119,10 +120,11 @@ if __name__ == "__main__":
     )
 
     ########### net
-    model = RobertaForMaskedLM(config)
+    # model = RobertaForMaskedLM(config)
     # checkpoint = torch.load('/root/tenset/scripts/train_bert/bertmodel.pkl2')
     # model.load_state_dict(checkpoint)
-    model = nn.DataParallel(model).to(torch.cuda.current_device())
+    # model = nn.DataParallel(model).to(torch.cuda.current_device())
+    model = AutoModel.from_pretrained("prajjwal1/bert-tiny")
 
     model.train()
     optim = torch.optim.AdamW(model.parameters(), lr=args.lr)

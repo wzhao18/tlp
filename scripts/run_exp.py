@@ -1,5 +1,6 @@
 import pickle
 import os
+import time
 
 from common import load_and_register_tasks
 from exp_util import (make_all_dataset, split_dataset, get_dataset_params,
@@ -29,8 +30,8 @@ for batch_size in [1, 2, 4]:
             holdout_models.append(f'(inception_v3,[({batch_size},3,{image_size},{image_size})])')
 
 hardware_platform = {
-    "e5-2673": "llvm",
-    # "epyc-7452": "llvm",
+    # "e5-2673": "llvm",
+    "epyc-7452": "llvm",
     # "graviton2": "llvm",
     # "i7": "llvm",
     # "platinum-8272": "llvm",
@@ -43,7 +44,7 @@ val_size_per_gpu = 1024
 n_gpu = 4
 
 device = 'cuda:0'
-attention_class = 'bert'
+attention_class = 'default'
 rank_mse = 'rank'
 n_epoch = 50
 optimizer = 'default'

@@ -1,5 +1,74 @@
 from torch import nn
 
+class AttentionModule0(nn.Module):  
+    def __init__(self, fea_size, step_size, res_block_cnt,
+                    hidden_dim, out_dim, attention_head):
+        super().__init__()
+        self.fea_size = fea_size
+        self.step_size = step_size
+        self.res_block_cnt = res_block_cnt
+
+        in_dim = self.fea_size
+        hidden_dim = hidden_dim
+        out_dim = out_dim
+        hidden_dim_1 = hidden_dim[-1]
+
+        self.encoder = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim[0]),
+            nn.ReLU(),
+            nn.Linear(hidden_dim[0], hidden_dim[1]),
+            nn.ReLU(),
+            nn.Linear(hidden_dim[1], hidden_dim[2]),
+            nn.ReLU(),
+            nn.Linear(hidden_dim[2], hidden_dim[3]),
+            nn.ReLU(),
+        )
+        self.attention = nn.MultiheadAttention(
+            hidden_dim_1, attention_head)
+
+        self.attention2 = nn.MultiheadAttention(
+            hidden_dim_1, attention_head)
+
+        self.l0 = nn.Sequential(
+            nn.Linear(hidden_dim_1, hidden_dim_1),
+            nn.ReLU(),
+        )
+        self.l_list = []
+        for i in range(self.res_block_cnt):
+            self.l_list.append(nn.Sequential(
+                nn.Linear(hidden_dim_1, hidden_dim_1), 
+                nn.ReLU()
+            ))
+        self.l_list = nn.Sequential(*self.l_list)
+
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_dim_1, out_dim[0]),
+            nn.ReLU(),
+            nn.Linear(out_dim[0], out_dim[1]),
+            nn.ReLU(),
+            nn.Linear(out_dim[1], out_dim[2]),
+            nn.ReLU(),
+            nn.Linear(out_dim[2], out_dim[3]),
+        )
+        
+
+    def forward(self, batch_datas_steps):
+
+        batch_datas_steps = batch_datas_steps[:, :self.step_size, :self.fea_size]
+        encoder_output = self.encoder(batch_datas_steps)
+
+        encoder_output = encoder_output.transpose(0, 1)
+        output0 = self.attention(encoder_output, encoder_output, encoder_output)[0] + encoder_output
+        output = self.attention2(output0, output0, output0)[0] + output0
+
+        for l in self.l_list:
+            output = l(output) + output
+
+        output = self.decoder(output).sum(0)
+
+        return output.squeeze()
+
+
 class AttentionModule(nn.Module):  
     def __init__(self, fea_size, step_size, res_block_cnt,
                     hidden_dim, out_dim, attention_head):

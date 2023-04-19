@@ -9,6 +9,7 @@ from torch import nn
 from torch import optim
 import os
 from pathlib import Path
+import time
 
 from tlp_train import (GPTSegmentDataLoader, BertSegmentDataLoader, SegmentDataLoader,
                         LambdaRankLoss, validate)
@@ -416,9 +417,15 @@ def pred_a_dataset(datas, task_pred_dict, model, device):
     preds_all = []
     labels_all = []
 
+    total = 0
     for batch_datas_steps, batch_labels in test_loader:
         batch_datas_steps = batch_datas_steps.to(device)
+        start = time.time()
         preds = model(batch_datas_steps)
+        print(batch_datas_steps.shape)
+        end = time.time()
+        total += end - start
+        # print(end - start)
         if isinstance(preds, list) and len(preds) > 1:
             preds = preds[0]
         preds_all.append(preds.detach().cpu())
@@ -428,6 +435,7 @@ def pred_a_dataset(datas, task_pred_dict, model, device):
     labels_all = torch.cat(labels_all, dim=0)
     task_pred_dict[workloadkey] = (preds_all.detach().cpu().numpy(
     ), test_loader.min_latency.min().numpy(), labels_all.numpy())
+    return total
 
 def eval_model(test_datasets, model_file, dataset_path, device, platform):
 
@@ -448,7 +456,7 @@ def eval_model(test_datasets, model_file, dataset_path, device, platform):
     for batch_size in [1, 4, 8]:
         for image_size in [224, 240, 256]:
             for layer in [18, 50]:
-                files.append(f'network_info/((resnet_{layer},[({batch_size},3, {image_size},{image_size})]),{platform}).task.pkl')
+                files.append(f'network_info/((resnet_{layer},[({batch_size},3,{image_size},{image_size})]),{platform}).task.pkl')
     for batch_size in [1, 4, 8]:
         for image_size in [224, 240, 256]:
             for name in ['mobilenet_v2', 'mobilenet_v3']:
@@ -477,11 +485,12 @@ def eval_model(test_datasets, model_file, dataset_path, device, platform):
         latencies = [0] * len(top_ks)
         best_latency = 0
 
+        time = 0
         for task, weight in zip(tasks, task_weights):
             if task.workload_key not in pred_a_dataset_dict:
                 print('error task.workload_key not in pred_a_dataset_dict')
                 continue
-            pred_a_dataset(
+            time += pred_a_dataset(
                 pred_a_dataset_dict[task.workload_key], task_pred_dict, model, device)
             preds, min_latency, labels = task_pred_dict[task.workload_key]
 
@@ -504,7 +513,8 @@ def eval_model(test_datasets, model_file, dataset_path, device, platform):
         top10_total += latencies[2]
         top20_total += latencies[3]
 
-
+    print("???")
+    print(time)
     print(f"average top 1 score is {best_latency_total / top1_total}")
     top_1_total.append(best_latency_total / top1_total)
     print(f"average top 5 score is {best_latency_total / top5_total}")
